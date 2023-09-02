@@ -25,8 +25,10 @@ export default class SpaceShooterScene extends Phaser.Scene {
     this.rocket = undefined;
     this.rocketSpeed = 50;
     this.ammo = undefined;
-    this.ammoJumlah = 40;
+    this.ammoJumlah = 20;
     this.ammoLabel = undefined;
+    this.largeMeteor = undefined;
+    this.largeMeteorSpeed = 50;
   }
   preload() {
     this.load.image("background", "images/spacebg.png");
@@ -41,6 +43,7 @@ export default class SpaceShooterScene extends Phaser.Scene {
     this.load.image("heart", "images/heart-icon.png");
     this.load.image("rocket", "images/enemy2.png");
     this.load.image("bullets", "images/peluru.png");
+    this.load.image("large-meteor", "images/meteor2.png");
     this.load.spritesheet("laser", "images/laser-bolts.png", {
       frameWidth: 16,
       frameHeight: 16,
@@ -64,6 +67,12 @@ export default class SpaceShooterScene extends Phaser.Scene {
       maxSize: 30,
       runChildUpdate: true,
     });
+    this.time.addEvent({
+      delay: Phaser.Math.Between(1000, 5000),
+      callback: this.spawnEnemy,
+      callbackScope: this,
+      loop: true,
+    });
 
     this.rocket = this.physics.add.group({
       classType: FallingObject,
@@ -71,22 +80,34 @@ export default class SpaceShooterScene extends Phaser.Scene {
       runChildUpdate: true,
     });
 
+    this.time.addEvent({
+      delay: Phaser.Math.Between(1000, 5000),
+      callback: this.spawnRocket,
+      callbackScope: this,
+      loop: true,
+    });
+
     this.ammo = this.physics.add.group({
       classType: FallingObject,
-      maxSize: 10,
+      maxSize: 5,
       runChildUpdate: true,
     });
 
     this.time.addEvent({
-      delay: Phaser.Math.Between(1000, 2000),
+      delay: 3000,
       callback: this.spawnAmmo,
       callbackScope: this,
       loop: true,
     });
 
+    this.largeMeteor = this.physics.add.group({
+      classType: FallingObject,
+      maxSize: 1,
+      runChildUpdate: true,
+    });
     this.time.addEvent({
-      delay: Phaser.Math.Between(1000, 5000),
-      callback: this.spawnEnemy,
+      delay: 5000,
+      callback: this.spawnMeteor,
       callbackScope: this,
       loop: true,
     });
@@ -97,6 +118,17 @@ export default class SpaceShooterScene extends Phaser.Scene {
       runChildUpdate: true,
     });
 
+    this.heart = this.physics.add.group({
+      classType: FallingObject,
+      maxSize: 2,
+      runChildUpdate: true,
+    });
+    this.time.addEvent({
+      delay: 5000,
+      callback: this.spawnHeart,
+      callbackScope: this,
+      loop: true,
+    });
     this.physics.add.overlap(
       this.enemies,
       this.lasers,
@@ -109,6 +141,53 @@ export default class SpaceShooterScene extends Phaser.Scene {
       this.rocket,
       this.lasers,
       this.hitEnemy,
+      null,
+      this
+    );
+    this.physics.add.overlap(
+      this.largeMeteor,
+      this.lasers,
+      this.hitEnemy,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player,
+      this.enemies,
+      this.decreaseLife,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player,
+      this.rocket,
+      this.decreaseLife,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player,
+      this.largeMeteor,
+      this.decreaseLife,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player,
+      this.heart,
+      this.increaseLife,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player,
+      this.ammo,
+      this.increaseAmmo,
       null,
       this
     );
@@ -133,55 +212,6 @@ export default class SpaceShooterScene extends Phaser.Scene {
       fontSize: "20px",
       //@ts-ignore
       fill: "yellow",
-    });
-    this.physics.add.overlap(
-      this.player,
-      this.enemies,
-      this.decreaseLife,
-      null,
-      this
-    );
-
-    this.physics.add.overlap(
-      this.player,
-      this.rocket,
-      this.decreaseLife,
-      null,
-      this
-    );
-
-    this.heart = this.physics.add.group({
-      classType: FallingObject,
-      runChildUpdate: true,
-    });
-    this.time.addEvent({
-      delay: 3000,
-      callback: this.spawnHeart,
-      callbackScope: this,
-      loop: true,
-    });
-
-    this.physics.add.overlap(
-      this.player,
-      this.heart,
-      this.increaseLife,
-      null,
-      this
-    );
-
-    this.physics.add.overlap(
-      this.player,
-      this.ammo,
-      this.increaseAmmo,
-      null,
-      this
-    );
-
-    this.time.addEvent({
-      delay: Phaser.Math.Between(1000, 5000),
-      callback: this.spawnRocket,
-      callbackScope: this,
-      loop: true,
     });
 
     this.backsound = this.sound.add("bgsound");
@@ -388,6 +418,7 @@ export default class SpaceShooterScene extends Phaser.Scene {
     const config = {
       speed: 250,
       rotation: 0,
+      shield: 0,
     };
     //@ts-ignore
     const rocket = this.rocket.get(0, 0, "rocket", config).setScale(0.2);
@@ -406,6 +437,22 @@ export default class SpaceShooterScene extends Phaser.Scene {
     const positionX = Phaser.Math.Between(50, 350);
     if (ammo) {
       ammo.spawn(positionX);
+    }
+  }
+  spawnMeteor() {
+    const config = {
+      speed: 100,
+      rotation: 0.03,
+      shield: 2,
+    };
+
+    const meteor = this.largeMeteor
+      //@ts-ignore
+      .get(0, 0, "large-meteor", config)
+      .setScale(0.4);
+    const positionX = Phaser.Math.Between(50, 350);
+    if (meteor) {
+      meteor.spawn(positionX);
     }
   }
 }
